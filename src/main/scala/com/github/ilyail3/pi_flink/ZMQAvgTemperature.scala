@@ -5,7 +5,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
 
-object SocketWindowWordCount {
+object ZMQAvgTemperature {
   def main(args: Array[String]): Unit = {
 
     // the port to connect to
@@ -13,12 +13,12 @@ object SocketWindowWordCount {
       ParameterTool.fromArgs(args).get("host")
     } catch {
       case e: Exception =>
-        System.err.println("No host specified. Please run 'SocketWindowWordCount --host <host>'")
+        System.err.println("No host specified. Please run 'ZMQAvgTemperature --host <host>'")
         return
     }
 
     if (host == null) {
-      System.err.println("No host specified. Please run 'SocketWindowWordCount --host <host>'")
+      System.err.println("No host specified. Please run 'ZMQAvgTemperature --host <host>'")
       return
     }
 
