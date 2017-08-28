@@ -1,9 +1,12 @@
 package com.github.ilyail3.pi_flink
 
+import java.io.File
+
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
+import scala.concurrent.duration._
 
 object ZMQAvgTemperature {
   def main(args: Array[String]): Unit = {
@@ -31,6 +34,15 @@ object ZMQAvgTemperature {
     val avgTemp = stats
       .timeWindowAll(Time.seconds(5), Time.seconds(1))
       .aggregate(new AvgTempAgg)
+
+    avgTemp
+      .addSink(new LocalFileSync(new File("/home/ilya/Desktop/TempStats"), Seq(
+        1.minute,
+        15.minutes,
+        3.hours,
+        1.day
+      )))
+      .setParallelism(1)
 
     avgTemp
       .addSink(new LCDDisplaySink(host))
