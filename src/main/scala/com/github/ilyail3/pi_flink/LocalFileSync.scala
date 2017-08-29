@@ -75,6 +75,7 @@ class LocalFileSync(folder: File, levels: Seq[FiniteDuration]) extends RichSinkF
 
     compactFiles.foreach(cf => FileUtils.forceDelete(cf.file))
 
+
   }
 
   override def invoke(value: AvgPressureTemp) = {
@@ -105,6 +106,25 @@ class LocalFileSync(folder: File, levels: Seq[FiniteDuration]) extends RichSinkF
     levels.zipWithIndex.foreach {
       case (_, index) =>
         currentLevel(index) = time(index)
+    }
+
+    // Check if there are any compactions waiting
+    val currentFileList = folder.listFiles()
+
+    levels.zipWithIndex.drop(1).foreach{
+      case (level, index) =>
+        val leftOvers = currentFileList.flatMap(file => file.getName match {
+          case LocalFileSync.FileReg(date, fileLevel, gz) if fileLevel.toInt == index - 1 =>
+            val fileDate = df.parse(date).getTime
+
+            Some((fileDate / level.toMillis) * level.toMillis)
+          case _ => None
+        }).toSet
+
+        // Only stuff that's in the past can be considered closed
+        leftOvers
+          .filter(date => date + level.toMillis < System.currentTimeMillis())
+          .foreach(date => compact(date, index))
     }
   }
 
