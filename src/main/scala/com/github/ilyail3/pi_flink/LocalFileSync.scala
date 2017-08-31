@@ -19,8 +19,8 @@ class LocalFileSync(folder: File, levels: Seq[FiniteDuration]) extends RichSinkF
   @transient private var level0Memory: mutable.Buffer[(Long, AvgPressureTemp)] = null
   @transient private var df: DateFormat = null
 
-  private def time(index: Int): Long =
-    (System.currentTimeMillis() / levels(index).toMillis) * levels(index).toMillis
+  private def time(now:Long, index: Int): Long =
+    (now / levels(index).toMillis) * levels(index).toMillis
 
   private def dumpFile(time: Long): Unit = {
     if (level0Memory.isEmpty) return
@@ -79,9 +79,11 @@ class LocalFileSync(folder: File, levels: Seq[FiniteDuration]) extends RichSinkF
   }
 
   override def invoke(value: AvgPressureTemp) = {
+    val now = System.currentTimeMillis()
+
     levels.zipWithIndex.foreach {
       case (_, index) =>
-        val current = time(index)
+        val current = time(now, index)
 
         if (current != currentLevel(index)) {
           if (index == 0) dumpFile(currentLevel(index))
@@ -103,9 +105,11 @@ class LocalFileSync(folder: File, levels: Seq[FiniteDuration]) extends RichSinkF
 
     currentLevel = new Array[Long](levels.size)
 
+    val now = System.currentTimeMillis()
+
     levels.zipWithIndex.foreach {
       case (_, index) =>
-        currentLevel(index) = time(index)
+        currentLevel(index) = time(now, index)
     }
 
     // Check if there are any compactions waiting
@@ -117,13 +121,13 @@ class LocalFileSync(folder: File, levels: Seq[FiniteDuration]) extends RichSinkF
           case LocalFileSync.FileReg(date, fileLevel, gz) if fileLevel.toInt == index - 1 =>
             val fileDate = df.parse(date).getTime
 
-            Some((fileDate / level.toMillis) * level.toMillis)
+            Some(time(fileDate, index))
           case _ => None
         }).toSet
 
         // Only stuff that's in the past can be considered closed
         leftOvers
-          .filter(date => date + level.toMillis < System.currentTimeMillis())
+          .filter(date => date < currentLevel(index))
           .foreach(date => compact(date, index))
     }
   }
